@@ -1,0 +1,146 @@
+ import pandas as pd
+ import numpy as np
+ import matplotlib.pyplot as plt
+ import seaborn as sns
+ import scipy.stats as s
+ from sklearn.metrics import classification_report
+
+ data = pd.read_csv('/content/drive/MyDrive/data (1).csv')
+ data.head()
+
+ data.columns
+
+ data.drop([data.columns[0],data.columns[32]],axis=1,inplace= True)
+
+ data.columns
+
+ labels = np.array(data['diagnosis']).reshape(data['diagnosis'].shape[0],1)
+ labels.shape
+
+ X= np.array(data.iloc[:,1:])
+ X.shape
+
+ mu = np.mean(X,axis=0)
+ mu.shape
+
+ mu_hat=mu.reshape(1,mu.shape[0])
+ mu_hat.shape
+
+ X_dash=X-mu_hat
+ X_dash.shape
+
+ sigma_hat=1/(data.shape[0])*np.matmul(X_dash.T,X_dash)
+ sigma_hat.shape
+ 
+ #now do singular value decomposition o sigma hat
+ sigma_hat_decompose = np.linalg.svd(sigma_hat)
+ len(sigma_hat_decompose)
+
+ Q=sigma_hat_decompose[0]
+ lamda=sigma_hat_decompose[1]
+
+ lamda
+
+ Q_tilda =Q[:,0:15]
+ Q_tilda.shape
+
+ X_new=np.matmul(X_dash,Q_tilda)
+ X_new.shape
+
+ new_data=pd.DataFrame(data=X_new)
+
+ new_data.head()
+
+ new_data['diagnosis']=labels
+ #this is our projectd data 
+ new_data.shape
+
+ new_data
+
+ new_data[new_data['diagnosis']=='M'].shape
+
+ new_data[new_data['diagnosis']=='B'].shape
+
+ CROSS VALIDATION
+
+ training_data_len =int(0.7*new_data.shape[0])
+ training_data_len
+
+ #we have to take training data lengths of  given classification are equally  otherwise it predicts wrongly
+ benign_train_data=new_data[new_data['diagnosis']=='B'].iloc[0: int(training_data_len/2)]
+ malignant_train_data=new_data[new_data['diagnosis']=='M'].iloc[0:int(training_data_len/2)]
+
+ benign_train_data.shape
+
+ #now cancatenate both data 
+ train_data =pd.concat([benign_train_data,malignant_train_data],axis=0)
+ train_data.shape
+
+remaining_data_of_bengign=new_data[new_data['diagnosis']=='B'].iloc[int(training_data_len/2):]
+ remaining_data_of_bengign.shape
+
+ #now we can take cross validation part of data
+ cv_len =int(0.2*new_data.shape[0])
+ cv_len
+
+ #now we can concatenate the remaining data
+ remaining_data =pd.concat([remaining_data_of_bengign,remaining_data_of_malignant],axis=0)
+ remaining_data.shape
+
+ cross_validation_data= remaining_data.iloc[0:113, :]
+ cross_validation_data.shape
+
+ test_data =remaining_data.iloc[113: , :]
+ test_data.shape
+
+ test_data.tail()
+
+ mu_hat =np.array(train_data[train_data['diagnosis'] =='M'].iloc[:,0:15].mean())
+ sigma_hat=np.array(train_data[train_data['diagnosis']=='M'].iloc[:,0:15].cov())
+
+ mu_hat
+
+ np.linalg.det(sigma_hat)
+
+ sigma_hat.shape
+
+ #now same work for benign
+ mu_hat_b=np.array(train_data[train_data['diagnosis']=='B'].iloc[:,0:15].mean())
+ sigma_hat_b=np.array(train_data[train_data['diagnosis']=='B'].iloc[:,0:15].cov())
+
+ sigma_hat_b.shape
+
+ malignant_prior=0.5
+ benign_prior=0.5
+
+ def mock_test(data):
+    inputs=np.array(data)
+   malignant_probability=s.multivariate_normal.pdf(inputs,mu_hat,sigma_hat)*malignant_prior
+    benign_probability=s.multivariate_normal.pdf(inputs,mu_hat_b,sigma_hat_b)*benign_prior
+    boolean_mask= malignant_probability>benign_probability
+    predict_category= pd.Series(boolean_mask)
+    predict_category.replace(to_replace=[True,False],value=['M','B'],inplace=True)
+    return np.array(predict_category)
+
+ predicted_output=mock_test(cross_validation_data.iloc[:,0:15])
+ actual_output=np.array(cross_validation_data['diagnosis'])
+ boolean_mask=actual_output==predicted_output
+
+ accuracy =np.count_nonzero(boolean_mask)/boolean_mask.shape[0]
+ accuracy
+
+ #if we do on test_data
+ test_pred =mock_test(test_data.iloc[:,0:15])
+ test_pred
+
+ actual_test_result=np.array(test_data['diagnosis'])
+ actual_test_result
+
+ boolean_mask1= actual_test_result == test_pred
+
+ test_accuracy =np.count_nonzero(boolean_mask1)/boolean_mask1.shape[0]
+ test_accuracy
+
+ THE FINAL RESULT
+
+ print(classification_report(actual_test_result,test_pred))
